@@ -7,4 +7,4 @@ The goal of this small project was to significantly speed up repetitive tasks so
 
 The main libraries used for this project were PyAutoGUI for the mouse coordinate logic (moving, clicking, saving) and Tkinter for the user interface implementation. The mouse library is also used to wait for mouse clicks so that coordinates could be saved. 
 
-![Alt text](/RPG Work Order Cutter Screenshot.png?raw=true "Optional Title")
+![Settings Window](https://raw.github.com/JacobEnochCMSD471/RPGWorkOrderCutter/main/Screenshots/Settings.png)
