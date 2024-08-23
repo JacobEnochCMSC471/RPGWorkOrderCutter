@@ -93,7 +93,7 @@ class MyApp:
 
         # Create an entry box for each label defined above - have each one take up one column in grid()
         for i, label in enumerate(self.labels):
-            tk.Label(self.frame, text=label).grid(row=0, column=i, padx=10, pady=5)
+            tk.Label(self.frame, text=label, font="Segoe_UI 12 underline").grid(row=0, column=i, padx=10, pady=5)
             entry = tk.Text(self.frame, width=20, height=20)  # Define the size, padding of the boxes (20 lines)
             entry.grid(row=1, column=i, padx=10, pady=5)  # Place each box iteratively
             self.entries.append(entry)  # Keep track of the entry boxes after their initialized
@@ -143,6 +143,23 @@ class MyApp:
         self.instructions_txtbox.insert(tk.END, "Training instructions will appear here.")
         self.instructions_txtbox.configure(state="disabled")
         self.instructions_txtbox.grid(row=3, column=0, columnspan=4, sticky='ew', padx=10, pady=5)
+
+        self.show_info_window()
+
+    def show_info_window(self):
+        messagebox.showinfo("Welcome - Instructions",
+                            "Welcome to the RPG Work Order Cutter/Completer/Closer application!\n\n"
+                            "Here are the instructions:\n\n"
+                            "- To train the application for cutting work orders, use the 'Train W/O Cutting' option.\n\n"
+                            "- Training consists of following the displayed instructions and clicking when "
+                            "instructed.\n\n"
+                            "- There must be only one (1) entry for the training process. The training process will "
+                            "cut one (1) work order.\n\n"
+                            "- To execute the work order cutting process, use the 'Execute W/O Cutting' option.\n\n"
+                            "- There must be at least one (1) entry in the PN, Qty and Job# boxes and the training must be completed to execute.\n\n"
+                            "- For saving work order numbers, use the 'Save Work Order Numbers' option.\n\n"
+                            "- Any Work Order Numbers will be saved to 'wo_nums.txt' in the same directory that this executable is found in.\n\n"
+                            "- To exit the application, use the 'Exit' option or press the red 'X' button.\n\n")
 
     '''
     3 different types of action: double click, single click and typing. Create 1 function that records these actions and
