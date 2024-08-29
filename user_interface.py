@@ -4,9 +4,8 @@ import time
 import pyautogui
 import mouse
 import os
+import re
 
-
-# import new_attempt
 
 def strings_to_tuples(strings_list):
     """
@@ -43,7 +42,6 @@ class MyApp:
         ]
 
         self.release_complete_close_wo_instructions = [
-            # Releasing WO
             'Recording "Work Ticket No." text box location...',
             'Recording "Status" dropdown box location...',
             'Recording "Released" dropdown box selection location...',
@@ -52,7 +50,6 @@ class MyApp:
             'Recording "Work Ticket Entry" window X button...',
             'Recording "Work Ticket Transaction Register/Update button...',
             'Recording "Print" button...',
-            # Completing WO
             'Recording "Work Ticket Transaction Entry" button...',
             'Recording "Next transaction #" button...',
             'Recording Tab 2 - Lines" button...',
@@ -63,7 +60,6 @@ class MyApp:
             'Recording "Print" button location...',
             'Recording Window X button location...',
             'Recording "Yes" button location...',
-            # Closing WO
             'Recording "Work Ticket Transaction Entry" button location...',
             'Recording "Next Transaction Number " button location...',
             'Recording "Status" dropdown box location...',
@@ -71,14 +67,14 @@ class MyApp:
             'Recording Tab 2 - Lines" button...',
             'Recording "Work Ticket No." text box location...',
             'Recording "Accept" button location...',
-            'Recording "Print" button location...',  # Might need more after this - we'll see
+            'Recording "Print" button location...',
         ]
 
         self.cut_work_order_page_open_time = 5  # Time in seconds to open page to cut/open work orders
         self.template_num = 1554
 
         self.root = root
-        self.root.geometry("1000x500")  # Set the window size
+        self.root.geometry("1000x550")  # Set the window size
         self.root.resizable(False, False)
         self.root.iconbitmap('RPG Favicon.ico')
         self.root.title("RPG Work Order Cutter/Completer/Closer")
@@ -91,52 +87,29 @@ class MyApp:
         self.labels = ['Part Number', 'Quantity', 'Job Number', 'Work Order Number']
         self.entries = []
 
-        # Create an entry box for each label defined above - have each one take up one column in grid()
+        # Create an entry box for each label defined above
         for i, label in enumerate(self.labels):
             tk.Label(self.frame, text=label, font="Segoe_UI 12 underline").grid(row=0, column=i, padx=10, pady=5)
             entry = tk.Text(self.frame, width=20, height=20)  # Define the size, padding of the boxes (20 lines)
             entry.grid(row=1, column=i, padx=10, pady=5)  # Place each box iteratively
             self.entries.append(entry)  # Keep track of the entry boxes after their initialized
 
+        # Create the menu bar
         self.menu_bar = tk.Menu(self.root)
         self.root.config(menu=self.menu_bar)
 
-        # Create 'Training' menu
-        self.training_menu = tk.Menu(self.menu_bar, tearoff=0)
-        self.menu_bar.add_cascade(label="Training", menu=self.training_menu)
-        self.training_menu.add_command(label="Train W/O Cutting", command=self.train_cutting)
+        # Create 'Actions' menu
+        self.actions_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Menu", menu=self.actions_menu)
 
-        # Create 'Execution' menu
-        self.execution_menu = tk.Menu(self.menu_bar, tearoff=0)
-        self.menu_bar.add_cascade(label="Execution", menu=self.execution_menu)
-        self.execution_menu.add_command(label="Execute W/O Cutting", command=self.execute_cutting_wos)
+        self.actions_menu.add_command(label="Instructions", command=self.show_info_window)
+        self.actions_menu.add_command(label="Train W/O Cutting", command=self.train_cutting)
+        self.actions_menu.add_command(label="Execute W/O Cutting", command=self.execute_cutting_wos)
+        self.actions_menu.add_command(label="Save Work Order Numbers", command=self.save_wo_nums)
+        self.actions_menu.add_command(label="Train W/O Releasing & Completing & Closing",
+                                      command=self.train_releasing_completing_closing)
 
-        self.save_wos_menu = tk.Menu(self.menu_bar, tearoff=0)
-        self.menu_bar.add_cascade(label="Save Work Order Numbers", menu=self.save_wos_menu)
-        self.save_wos_menu.add_command(label="Save Work Order Numbers", command=self.save_wo_nums)
-
-        self.exit_menu = tk.Menu(self.menu_bar, tearoff=0)
-        self.menu_bar.add_cascade(label="Exit", menu=self.exit_menu)
-        self.exit_menu.add_command(label="Exit", command=self.exit_program)
-
-        # Create buttons for Train and Execute
-        '''self.train_button_cut_wo = tk.Button(self.frame, text='Train W/O Cutting', command=self.train_cutting)
-        self.train_button_cut_wo.grid(row=2, column=0, columnspan=1, pady=10)
-
-        self.train_button_rel_wo = tk.Button(self.frame, text='Train W/O Releasing & Completing & Closing',
-                                             command=self.train_releasing_completing_closing)
-        self.train_button_rel_wo.grid(row=2, column=1, columnspan=1, pady=10)
-
-        self.execute_button_cut_wo = tk.Button(self.frame, text='Execute W/O Cutting', command=self.execute_cutting_wos)
-        self.execute_button_cut_wo.grid(row=2, column=2, columnspan=1, pady=10)
-
-        self.execute_button_rel_wo = tk.Button(self.frame, text='Execute W/O Releasing & Completing & Closing',
-                                              # command=self.read_values)
-        self.execute_button_rel_wo.grid(row=2, column=3, columnspan=1, pady=10)
-
-        self.execute_button_rel_wo.config(state="disabled")
-        self.train_button_rel_wo.config(state="disabled")
-        '''
+        self.actions_menu.add_command(label="Exit", command=self.exit_program)
 
         # Create instructions text box and span all columns
         self.instructions_txtbox = tk.Text(self.frame, height=2)
@@ -144,21 +117,28 @@ class MyApp:
         self.instructions_txtbox.configure(state="disabled")
         self.instructions_txtbox.grid(row=3, column=0, columnspan=4, sticky='ew', padx=10, pady=5)
 
-        self.show_info_window()
+        self.execute_button = tk.Button(text="Execute Cutting W/Os", command=self.execute_cutting_wos)
+        self.execute_button.pack(pady=30)
+
+        # Regex for matching part numbers: [0-9][0-9][0-9][0-9]-[0-9][0-9]?
+        # Regex for matching UYZ08- part numbers: ^UYZ08-.+
 
     def show_info_window(self):
         messagebox.showinfo("Welcome - Instructions",
                             "Welcome to the RPG Work Order Cutter/Completer/Closer application!\n\n"
                             "Here are the instructions:\n\n"
-                            "- To train the application for cutting work orders, use the 'Train W/O Cutting' option.\n\n"
+                            "- To train the application for cutting work orders, use the 'Train W/O Cutting' "
+                            "option.\n\n"
                             "- Training consists of following the displayed instructions and clicking when "
                             "instructed.\n\n"
                             "- There must be only one (1) entry for the training process. The training process will "
                             "cut one (1) work order.\n\n"
                             "- To execute the work order cutting process, use the 'Execute W/O Cutting' option.\n\n"
-                            "- There must be at least one (1) entry in the PN, Qty and Job# boxes and the training must be completed to execute.\n\n"
+                            "- There must be at least one (1) entry in the PN, Qty and Job# boxes and the training "
+                            "must be completed to execute.\n\n"
                             "- For saving work order numbers, use the 'Save Work Order Numbers' option.\n\n"
-                            "- Any Work Order Numbers will be saved to 'wo_nums.txt' in the same directory that this executable is found in.\n\n"
+                            "- Any Work Order Numbers will be saved to 'wo_nums.txt' in the same directory that this "
+                            "executable is found in.\n\n"
                             "- To exit the application, use the 'Exit' option or press the red 'X' button.\n\n")
 
     '''
@@ -512,22 +492,22 @@ class MyApp:
         return
 
     def read_values(self):
-        '''
-        Reads all of the boxes
+        """
+        Reads all the boxes
         :return: values, or list all the things typed in the all the boxes
-        '''
+        """
         values = [entry.get("1.0", "end-1c").strip() for entry in self.entries]
         # print(values)  # To verify the values read from the text boxes
         return values
 
     def train_cutting(self):
 
-        '''
+        """
         Function that is linked to train w/o cutting button. Prompts user to verify that they'd like to train cutting
         coordinates. If yes, wipe current file and continue with training process. If no, return and do nothing.
 
         :return: None
-        '''
+        """
 
         answer = messagebox.askyesno("Confirm Training",
                                      "Are you sure you want to train? This will wipe the existing file.")
@@ -545,11 +525,38 @@ class MyApp:
             qtys = box_vals[1].split("\n")
             job_nos = box_vals[2].split("\n")
 
+            if not len(pns) == len(qtys) == len(job_nos):
+                self.show_error(message="Number of part numbers does not match number of quantities or job numbers!")
+                return
+
+            match1 = re.compile("^[0-9]{4}-[0-9]{1,2}$")
+            match2 = re.compile("^UYZ08-.+$")
+            match3 = re.compile("^[+-]?[0-9]+$")
+            match4 = re.compile("^[0-9]{4}-[0-9]{3}$")
+
+            for index in range(len(pns)):
+                res1 = match1.match(pns[index])
+                res2 = match2.match(pns[index])
+                res3 = match3.match(qtys[index])
+                res4 = match4.match(job_nos[index])
+
+                if not res1 and not res2:
+                    self.show_error(message="Double check formatting for part numbers! Incorrect characters detected.")
+                    return
+
+                elif not res3:
+                    self.show_error(message="Double check formatting for quantities! Incorrect characters detected.")
+                    return
+
+                elif not res4:
+                    self.show_error(message="Double check formatting for job numbers! Incorrect characters detected.")
+                    return
+
             # Check if the first three boxes are empty or contain more than one object
             if not box_vals[0] or not box_vals[1] or not box_vals[2]:
                 self.show_error("Error: One or more required fields are empty.")
             elif len(pns) > 1 or len(qtys) > 1 or len(job_nos) > 1:
-                self.show_error("Error: More than one object in one of the first three fields.")
+                self.show_error("Error: More than one object in one of the three required fields.")
             else:
                 print("Proceeding with training...")
                 self.main_train_loop(pn=pns[0], qty=qtys[0], job_num=job_nos[0],
@@ -590,10 +597,10 @@ class MyApp:
 
     def append_work_order_number(self):
 
-        '''
+        """
         Function that appends the entered work order number from the pop-up prompt to the textbox
         :return: None
-        '''
+        """
         wo_number = self.wo_entry.get().strip()
         if wo_number:
             current_text = self.entries[-1].get("1.0", "end-1c").strip()
@@ -648,6 +655,11 @@ class MyApp:
             return
 
     def execute_cutting_wos(self):
+        # Regex for matching part numbers: [0-9][0-9][0-9][0-9]-[0-9][0-9]? or ^\d{4}-\d{1,2}$
+        # Regex for matching UYZ08- part numbers: ^UYZ08-.+$ ex.
+        # Regex for matching quantities: ^[+-]?\d+$ ex. 1, 2, 3, 4...
+        # Regex for matching job numbers: ^\d{4}-\d{3}$
+
         box_vals = self.read_values()
 
         pns = box_vals[0].split("\n")
@@ -673,6 +685,33 @@ class MyApp:
             file.close()
 
         coord_list = strings_to_tuples(lines)
+
+        if not len(pns) == len(qtys) == len(job_nos):
+            self.show_error(message="Number of part numbers does not match number of quantities or job numbers!")
+            return
+
+        match1 = re.compile("^[0-9]{4}-[0-9]{1,2}$")
+        match2 = re.compile("^UYZ08-.+$")
+        match3 = re.compile("^[+]?[0-9]+$")
+        match4 = re.compile("^[0-9]{4}-[0-9]{3}$")
+
+        for index in range(len(pns)):
+            res1 = match1.match(pns[index])
+            res2 = match2.match(pns[index])
+            res3 = match3.match(qtys[index])
+            res4 = match4.match(job_nos[index])
+
+            if not res1 and not res2:
+                self.show_error(message="Double check formatting for part numbers! Incorrect characters detected.")
+                return
+
+            elif not res3:
+                self.show_error(message="Double check formatting for quantities! Incorrect characters detected.")
+                return
+
+            elif not res4:
+                self.show_error(message="Double check formatting for job numbers! Incorrect characters detected.")
+                return
 
         for index in range(len(pns)):
             curr_pn = pns[index]
